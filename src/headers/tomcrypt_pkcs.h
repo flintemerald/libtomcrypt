@@ -64,13 +64,13 @@ int pkcs_1_oaep_decode(const unsigned char *msg,    unsigned long msglen,
                              unsigned char *out,    unsigned long *outlen,
                              int           *res);
 
-int pkcs_1_pss_encode(const unsigned char *msghash, unsigned long msghashlen,
+int pkcs_1_pss_encode(const unsigned char *msghash, unsigned long msghashlen, int content_hash_idx,
                             unsigned long saltlen,  prng_state   *prng,
                             int           prng_idx, int           hash_idx,
                             unsigned long modulus_bitlen,
                             unsigned char *out,     unsigned long *outlen);
 
-int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
+int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen, int content_hash_idx,
                       const unsigned char *sig,     unsigned long siglen,
                             unsigned long saltlen,  int           hash_idx,
                             unsigned long modulus_bitlen, int    *res);

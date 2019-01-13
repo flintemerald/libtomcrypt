@@ -21,6 +21,7 @@
   @param siglen           The length of the signature data (octets)
   @param hash             The hash of the message that was signed
   @param hashlen          The length of the hash of the message that was signed (octets)
+  @param content_hash_idx  The index of the desired content hash
   @param padding          Type of padding (LTC_PKCS_1_PSS, LTC_PKCS_1_V1_5 or LTC_PKCS_1_V1_5_NA1)
   @param hash_idx         The index of the desired hash
   @param saltlen          The length of the salt used during signature
@@ -29,7 +30,7 @@
   @return CRYPT_OK on success (even if the signature is invalid)
 */
 int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  siglen,
-                       const unsigned char *hash,           unsigned long  hashlen,
+                       const unsigned char *hash,           unsigned long  hashlen, int content_hash_idx,
                              int            padding,
                              int            hash_idx,       unsigned long  saltlen,
                              int           *stat,     const rsa_key       *key)
@@ -93,10 +94,10 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
     /* PSS decode and verify it */
 
     if(modulus_bitlen%8 == 1){
-      err = pkcs_1_pss_decode(hash, hashlen, tmpbuf+1, x-1, saltlen, hash_idx, modulus_bitlen, stat);
+      err = pkcs_1_pss_decode(hash, hashlen, content_hash_idx, tmpbuf+1, x-1, saltlen, hash_idx, modulus_bitlen, stat);
     }
     else{
-      err = pkcs_1_pss_decode(hash, hashlen, tmpbuf, x, saltlen, hash_idx, modulus_bitlen, stat);
+      err = pkcs_1_pss_decode(hash, hashlen, content_hash_idx, tmpbuf, x, saltlen, hash_idx, modulus_bitlen, stat);
     }
 
   } else {

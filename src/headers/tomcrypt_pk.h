@@ -67,11 +67,11 @@ void rsa_free(rsa_key *key);
 #define rsa_decrypt_key(_in, _inlen, _out, _outlen, _lparam, _lparamlen, _hash_idx, _stat, _key) \
   rsa_decrypt_key_ex(_in, _inlen, _out, _outlen, _lparam, _lparamlen, _hash_idx, LTC_PKCS_1_OAEP, _stat, _key)
 
-#define rsa_sign_hash(_in, _inlen, _out, _outlen, _prng, _prng_idx, _hash_idx, _saltlen, _key) \
-  rsa_sign_hash_ex(_in, _inlen, _out, _outlen, LTC_PKCS_1_PSS, _prng, _prng_idx, _hash_idx, _saltlen, _key)
+#define rsa_sign_hash(_in, _inlen, _content_hash_idx, _out, _outlen, _prng, _prng_idx, _hash_idx, _saltlen, _key) \
+  rsa_sign_hash_ex(_in, _inlen, _content_hash_idx, _out, _outlen, LTC_PKCS_1_PSS, _prng, _prng_idx, _hash_idx, _saltlen, _key)
 
-#define rsa_verify_hash(_sig, _siglen, _hash, _hashlen, _hash_idx, _saltlen, _stat, _key) \
-  rsa_verify_hash_ex(_sig, _siglen, _hash, _hashlen, LTC_PKCS_1_PSS, _hash_idx, _saltlen, _stat, _key)
+#define rsa_verify_hash(_sig, _siglen, _hash, _hashlen, _content_hash_idx, _hash_idx, _saltlen, _stat, _key) \
+  rsa_verify_hash_ex(_sig, _siglen, _hash, _hashlen, _content_hash_idx, LTC_PKCS_1_PSS, _hash_idx, _saltlen, _stat, _key)
 
 #define rsa_sign_saltlen_get_max(_hash_idx, _key) \
   rsa_sign_saltlen_get_max_ex(LTC_PKCS_1_PSS, _hash_idx, _key)
@@ -90,7 +90,7 @@ int rsa_decrypt_key_ex(const unsigned char *in,             unsigned long  inlen
                              int            hash_idx,       int            padding,
                              int           *stat,     const rsa_key       *key);
 
-int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen,
+int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen, int content_hash_idx,
                            unsigned char *out,      unsigned long *outlen,
                            int            padding,
                            prng_state    *prng,     int            prng_idx,
@@ -98,7 +98,7 @@ int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen,
                      const rsa_key       *key);
 
 int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  siglen,
-                       const unsigned char *hash,           unsigned long  hashlen,
+                       const unsigned char *hash,           unsigned long  hashlen, int content_hash_idx,
                              int            padding,
                              int            hash_idx,       unsigned long  saltlen,
                              int           *stat,     const rsa_key       *key);

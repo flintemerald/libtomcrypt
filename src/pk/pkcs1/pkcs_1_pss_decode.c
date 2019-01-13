@@ -19,6 +19,7 @@
    PKCS #1 v2.00 PSS decode
    @param  msghash         The hash to verify
    @param  msghashlen      The length of the hash (octets)
+   @param content_hash_idx  The index of the content hash desired
    @param  sig             The signature data (encoded data)
    @param  siglen          The length of the signature data (octets)
    @param  saltlen         The length of the salt used (octets)
@@ -27,13 +28,14 @@
    @param  res             [out] The result of the comparison, 1==valid, 0==invalid
    @return CRYPT_OK if successful (even if the comparison failed)
 */
-int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
+int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen, int content_hash_idx,
                       const unsigned char *sig,     unsigned long siglen,
                             unsigned long saltlen,  int           hash_idx,
                             unsigned long modulus_bitlen, int    *res)
 {
+   unsigned char *mDash;
    unsigned char *DB, *mask, *salt, *hash;
-   unsigned long x, y, hLen, modulus_len;
+   unsigned long x, y, hLenContent, modulus_len, mDashLen;
    int           err;
    hash_state    md;
 
@@ -47,23 +49,31 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
    if ((err = hash_is_valid(hash_idx)) != CRYPT_OK) {
       return err;
    }
+   if ((err = hash_is_valid(content_hash_idx)) != CRYPT_OK) {
+      return err;
+   }
 
-   hLen        = hash_descriptor[hash_idx].hashsize;
+   hLenContent = hash_descriptor[content_hash_idx].hashsize;
    modulus_bitlen--;
    modulus_len = (modulus_bitlen>>3) + (modulus_bitlen & 7 ? 1 : 0);
+   mDashLen    = 8 + saltlen + hLenContent;
 
    /* check sizes */
    if ((saltlen > modulus_len) ||
-       (modulus_len < hLen + saltlen + 2)) {
+       (modulus_len < hLenContent + saltlen + 2)) {
       return CRYPT_PK_INVALID_SIZE;
    }
 
    /* allocate ram for DB/mask/salt/hash of size modulus_len */
+   mDash = XMALLOC(mDashLen);
    DB   = XMALLOC(modulus_len);
    mask = XMALLOC(modulus_len);
    salt = XMALLOC(modulus_len);
    hash = XMALLOC(modulus_len);
-   if (DB == NULL || mask == NULL || salt == NULL || hash == NULL) {
+   if (mDash == NULL || DB == NULL || mask == NULL || salt == NULL || hash == NULL) {
+      if (mDash != NULL) {
+          XFREE(mDash);
+      }
       if (DB != NULL) {
          XFREE(DB);
       }
@@ -79,6 +89,9 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
       return CRYPT_MEM;
    }
 
+   zeromem(mDash, mDashLen);
+   XMEMCPY(mDash+8, msghash, msghashlen);
+
    /* ensure the 0xBC byte */
    if (sig[siglen-1] != 0xBC) {
       err = CRYPT_INVALID_PACKET;
@@ -87,11 +100,11 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
 
    /* copy out the DB */
    x = 0;
-   XMEMCPY(DB, sig + x, modulus_len - hLen - 1);
-   x += modulus_len - hLen - 1;
+   XMEMCPY(DB, sig + x, modulus_len);
+   x += modulus_len - hLenContent - 1;
 
    /* copy out the hash */
-   XMEMCPY(hash, sig + x, hLen);
+   XMEMCPY(hash, sig + x, hLenContent);
    /* x += hLen; */
 
    /* check the MSB */
@@ -101,12 +114,12 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
    }
 
    /* generate mask of length modulus_len - hLen - 1 from hash */
-   if ((err = pkcs_1_mgf1(hash_idx, hash, hLen, mask, modulus_len - hLen - 1)) != CRYPT_OK) {
+   if ((err = pkcs_1_mgf1(hash_idx, hash, hLenContent, mask, modulus_len - hLenContent - 1)) != CRYPT_OK) {
       goto LBL_ERR;
    }
 
    /* xor against DB */
-   for (y = 0; y < (modulus_len - hLen - 1); y++) {
+   for (y = 0; y < (modulus_len - hLenContent - 1); y++) {
       DB[y] ^= mask[y];
    }
 
@@ -116,7 +129,7 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
    /* DB = PS || 0x01 || salt, PS == modulus_len - saltlen - hLen - 2 zero bytes */
 
    /* check for zeroes and 0x01 */
-   for (x = 0; x < modulus_len - saltlen - hLen - 2; x++) {
+   for (x = 0; x < modulus_len - saltlen - hLenContent - 2; x++) {
        if (DB[x] != 0x00) {
           err = CRYPT_INVALID_PACKET;
           goto LBL_ERR;
@@ -129,32 +142,30 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
       goto LBL_ERR;
    }
 
-   /* M = (eight) 0x00 || msghash || salt, mask = H(M) */
-   if ((err = hash_descriptor[hash_idx].init(&md)) != CRYPT_OK) {
+   XMEMCPY(mDash + 8 + hLenContent, DB + modulus_len - saltlen - hLenContent - 1, saltlen);
+
+   if ((err = hash_descriptor[content_hash_idx].init(&md)) != CRYPT_OK) {
       goto LBL_ERR;
    }
-   zeromem(mask, 8);
-   if ((err = hash_descriptor[hash_idx].process(&md, mask, 8)) != CRYPT_OK) {
+   if ((err = hash_descriptor[content_hash_idx].process(&md, mDash, mDashLen)) != CRYPT_OK) {
       goto LBL_ERR;
    }
-   if ((err = hash_descriptor[hash_idx].process(&md, msghash, msghashlen)) != CRYPT_OK) {
-      goto LBL_ERR;
-   }
-   if ((err = hash_descriptor[hash_idx].process(&md, DB+x, saltlen)) != CRYPT_OK) {
-      goto LBL_ERR;
-   }
-   if ((err = hash_descriptor[hash_idx].done(&md, mask)) != CRYPT_OK) {
+   if ((err = hash_descriptor[content_hash_idx].done(&md, mDash + 8 + saltlen)) != CRYPT_OK) {
       goto LBL_ERR;
    }
 
-   /* mask == hash means valid signature */
-   if (XMEM_NEQ(mask, hash, hLen) == 0) {
-      *res = 1;
+   for (unsigned long i = modulus_len - hLenContent - 1, j = mDashLen - hLenContent; j != mDashLen; ++i, ++j) {
+       if ((DB[i] ^ mDash[j]) != 0) {
+           err = CRYPT_OK;
+           goto LBL_ERR;
+       }
    }
 
+   *res = 1;
    err = CRYPT_OK;
 LBL_ERR:
 #ifdef LTC_CLEAN_STACK
+   zeromem(mDash, mDashLen)
    zeromem(DB,   modulus_len);
    zeromem(mask, modulus_len);
    zeromem(salt, modulus_len);
@@ -165,6 +176,7 @@ LBL_ERR:
    XFREE(salt);
    XFREE(mask);
    XFREE(DB);
+   XFREE(mDash);
 
    return err;
 }

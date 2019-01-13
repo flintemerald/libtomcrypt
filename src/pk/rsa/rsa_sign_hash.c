@@ -19,6 +19,7 @@
   PKCS #1 pad then sign
   @param in        The hash to sign
   @param inlen     The length of the hash to sign (octets)
+  @param content_hash_idx  The index of the content hash desired
   @param out       [out] The signature
   @param outlen    [in/out] The max size and resulting size of the signature
   @param padding   Type of padding (LTC_PKCS_1_PSS, LTC_PKCS_1_V1_5 or LTC_PKCS_1_V1_5_NA1)
@@ -29,7 +30,7 @@
   @param key       The private RSA key to use
   @return CRYPT_OK if successful
 */
-int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen,
+int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen, int content_hash_idx,
                            unsigned char *out,      unsigned long *outlen,
                            int            padding,
                            prng_state    *prng,     int            prng_idx,
@@ -78,7 +79,7 @@ int rsa_sign_hash_ex(const unsigned char *in,       unsigned long  inlen,
   if (padding == LTC_PKCS_1_PSS) {
     /* PSS pad the key */
     x = *outlen;
-    if ((err = pkcs_1_pss_encode(in, inlen, saltlen, prng, prng_idx,
+    if ((err = pkcs_1_pss_encode(in, inlen, content_hash_idx, saltlen, prng, prng_idx,
                                  hash_idx, modulus_bitlen, out, &x)) != CRYPT_OK) {
        return err;
     }

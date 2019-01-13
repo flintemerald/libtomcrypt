@@ -74,15 +74,15 @@ int pkcs_1_test(void)
 
       /* test PSS */
       l1 = sizeof(buf[1]);
-      DO(pkcs_1_pss_encode(buf[0], l3, saltlen, &yarrow_prng, prng_idx, hash_idx, modlen, buf[1], &l1));
-      DO(pkcs_1_pss_decode(buf[0], l3, buf[1], l1, saltlen, hash_idx, modlen, &res1));
+      DO(pkcs_1_pss_encode(buf[0], l3, hash_idx, saltlen, &yarrow_prng, prng_idx, hash_idx, modlen, buf[1], &l1));
+      DO(pkcs_1_pss_decode(buf[0], l3, hash_idx, buf[1], l1, saltlen, hash_idx, modlen, &res1));
 
       buf[0][i1 = abs(rand()) % l3] ^= 1;
-      DO(pkcs_1_pss_decode(buf[0], l3, buf[1], l1, saltlen, hash_idx, modlen, &res2));
+      DO(pkcs_1_pss_decode(buf[0], l3, hash_idx, buf[1], l1, saltlen, hash_idx, modlen, &res2));
 
       buf[0][i1] ^= 1;
       buf[1][i2 = abs(rand()) % (l1 - 1)] ^= 1;
-      pkcs_1_pss_decode(buf[0], l3, buf[1], l1, saltlen, hash_idx, modlen, &res3);
+      pkcs_1_pss_decode(buf[0], l3, hash_idx, buf[1], l1, saltlen, hash_idx, modlen, &res3);
       if (!(res1 == 1 && res2 == 0 && res3 == 0)) {
          fprintf(stderr, "PSS failed: %d, %d, %d, %lu, %lu\n", res1, res2, res3, l3, saltlen);
          return 1;
