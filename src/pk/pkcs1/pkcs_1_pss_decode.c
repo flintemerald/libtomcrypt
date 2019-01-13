@@ -41,6 +41,7 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen, in
 
    LTC_ARGCHK(msghash != NULL);
    LTC_ARGCHK(res     != NULL);
+   LTC_ARGCHK(msghashlen  == hash_descriptor[content_hash_idx].hashsize);
 
    /* default to invalid */
    *res = 0;
@@ -56,7 +57,7 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen, in
    hLenContent = hash_descriptor[content_hash_idx].hashsize;
    modulus_bitlen--;
    modulus_len = (modulus_bitlen>>3) + (modulus_bitlen & 7 ? 1 : 0);
-   mDashLen    = 8 + saltlen + hLenContent;
+   mDashLen    = 8 + saltlen + msghashlen;
 
    /* check sizes */
    if ((saltlen > modulus_len) ||

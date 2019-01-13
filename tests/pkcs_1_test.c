@@ -37,8 +37,8 @@ int pkcs_1_test(void)
    for (x = 0; x < 100; x++) {
       zeromem(buf, sizeof(buf));
 
-      /* make a dummy message (of random length) */
-      l3 = (rand() & 31) + 8;
+      /* make a dummy message (of hashsize length) */
+      l3 = hash_descriptor[hash_idx].hashsize;
       for (y = 0; y < l3; y++) buf[0][y] = rand() & 255;
 
       /* pick a random lparam len [0..16] */
